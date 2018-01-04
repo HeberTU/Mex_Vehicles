@@ -1,0 +1,99 @@
+---
+title: "Developing Data Products"
+subtitle: "Vehicles in Mexico"
+author: "Heber Trujillo"
+date: "January 4, 2018"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:/DISCO D/Bienvenu/Voitures/Individuel/PT/Models/Spatial Smooth/Mapas/02.-Nivel Estatal")
+library(data.table)
+library(leaflet)
+library(rgdal)
+library(data.table)
+library(dplyr)
+library(RColorBrewer)
+library(rgeos)
+```
+
+## Introduction
+
+The aim of this presentation is to explain in more detail the [shiny app](https://heber.shinyapps.io/Final_project/) required for the final project of Developing Data Products course.
+The following [link](https://github.com/HeberTU/Mex_Vehicles/upload/master) contains the app's and presentation's source code as well.
+
+The app has a dropbox in which you can select which geographical distribution wanna see:
+
+- Total Vehicles
+- Cars
+- Passenger Trucks
+- Cargo Trucks
+- Motorcycles  
+
+
+## Data
+
+The data used for this project consist in two pieces:
+
+- Mexican Shapefiles: A series of [files](https://datos.gob.mx/busca/dataset?res_format=SHP) needed to display polygons over a map. 
+
+*Code for reading this type of files*
+```{r p1,echo=T,message=FALSE,warning=FALSE}
+Mex <- rgdal::readOGR(dsn="C:/Estatal",layer="MEX_adm1")
+```
+
+- INEGI's [data](http://www.inegi.org.mx/).
+```{r p2, warning=FALSE}
+  centr <- gCentroid(Mex)@coords
+  data_inegi<-fread("C:/DISCO D/Bienvenu/Voitures/Individuel/PT/Academic/Coursera/Data Products/Shiny/Project_4/Autos_2016.csv")
+  data_inegi<-data_inegi%>%dplyr::select(-Nombre,-Clave)
+  Mex@data<-left_join(Mex@data,data_inegi, by="HASC_1")
+  
+  bins <- quantile(Mex@data$Total, c(0, .25, .5, .75, 1))
+  pal <- colorBin("YlOrRd", domain = Mex@data$Total, bins = bins,
+                      na.color = "grey40", reverse = FALSE)
+      
+      
+```
+
+
+
+## Example: Total Vehicles
+
+```{r map}
+leaflet(options = leafletOptions(minZoom = 5, maxZoom = 5)) %>% 
+          addTiles() %>% 
+          setView(centr[1], centr[2], zoom = 5) %>% 
+          leaflet::addLegend(pal = pal, values =Mex@data$Total, 
+                             opacity = 0.4, position = "topright", title = "Total Vehicles")%>% 
+          addPolygons(data=Mex, weight = 1, 
+                      fill = ~Mex@data$Total, fillColor = ~pal(Total),
+                      opacity=1, fillOpacity = 0.6, color=grey(0.5),
+                      highlight = highlightOptions(
+                        weight = 1,
+                        color = "white",
+                        dashArray = "",
+                        fillOpacity = 0.7,
+                        bringToFront = TRUE),
+                      popup  = ~as.character(
+                        paste(as.character(NAME_1),"<br>",
+                              "Total vehicles: ",format(Total,big.mark = ","))))  
+```
+
+## Conclusions
+
+This application is a very useful tool, It allows you to compare the distribution of very different type of vehicles among Mexican states. Can be used by an insurance company's sales force in decision making.
+
+For instance:
+
+We can notice that states with more number of vehicles are concentrated right in the middle of the country.
+
+- Distrito Federal
+- México
+- Guanajuato
+- Jalisto
+- Michocán
+
+However, in the north of the country, there is another one with a high concentration of vehicles: Nuevo León.
+
